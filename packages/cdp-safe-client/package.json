@@ -1,0 +1,20 @@
+{
+  "name": "@local/cdp-safe-client",
+  "version": "0.1.0",
+  "description": "Local safety wrapper for Chrome DevTools Protocol automation.",
+  "main": "index.js",
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "puppeteer": "*",
+    "puppeteer-core": "*"
+  },
+  "peerDependenciesMeta": {
+    "puppeteer": {
+      "optional": true
+    },
+    "puppeteer-core": {
+      "optional": true
+    }
+  }
+}
