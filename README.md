@@ -22,10 +22,21 @@ Launch with custom values:
 cdp-launch -Name chatgpt -Port 9222 -ProfileRoot D:\chrome-cdp-profiles
 ```
 
+Profiles must stay under `D:\chrome-cdp-profiles` by default. Use
+`-AllowNonStandardProfileRoot` only for a reviewed local exception.
+
 Inspect CDP listeners, active clients, and related process trees:
 
 ```powershell
 cdp-status
+```
+
+By default, `cdp-status` hides full process command lines so profile paths and
+launch URLs are not copied into logs accidentally. Use this only while
+debugging locally:
+
+```powershell
+cdp-status -ShowCommandLine
 ```
 
 ## Node Usage
@@ -33,7 +44,7 @@ cdp-status
 Install the local wrapper in a project:
 
 ```powershell
-npm install --save file:D:/projects/cdp-tools/packages/cdp-safe-client
+npm install --save file:D:/projects/cdp-tools/packages/cdp-safe-client puppeteer-core
 ```
 
 Then use it from scripts:
@@ -59,6 +70,8 @@ await browser.disconnect();
 
 - Launch Chrome with `cdp-launch`, not raw `chrome.exe --remote-debugging-port`.
 - Connect through `@local/cdp-safe-client` for Node scripts when practical.
+- `@local/cdp-safe-client` accepts only local CDP URLs by default.
+- `@local/cdp-safe-client` fails if the requested target page is not found by default.
 - Do not repeatedly enumerate all tabs or targets inside polling loops.
 - Do not enable `Network`, `Performance`, `Log`, or `Debugger` domains unless needed.
 - Do not take screenshots on every poll loop.

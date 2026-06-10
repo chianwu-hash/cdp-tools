@@ -11,10 +11,13 @@ param(
 
   [switch]$AllowExtensions,
 
+  [switch]$AllowNonStandardProfileRoot,
+
   [switch]$NoLaunchIfRunning
 )
 
 $ErrorActionPreference = "Stop"
+$DefaultProfileRoot = "D:\chrome-cdp-profiles"
 
 function Find-Chrome {
   $candidates = @(
@@ -41,6 +44,12 @@ function Get-ListeningProcessOnPort([int]$Port) {
 $profileName = ($Name -replace "[^a-zA-Z0-9._-]", "-").Trim("-")
 if (-not $profileName) {
   throw "Profile name cannot be empty."
+}
+
+$resolvedProfileRoot = [System.IO.Path]::GetFullPath($ProfileRoot).TrimEnd("\")
+$resolvedDefaultProfileRoot = [System.IO.Path]::GetFullPath($DefaultProfileRoot).TrimEnd("\")
+if ($resolvedProfileRoot -ne $resolvedDefaultProfileRoot -and -not $AllowNonStandardProfileRoot) {
+  throw "ProfileRoot must stay under $DefaultProfileRoot. Pass -AllowNonStandardProfileRoot only for a reviewed local exception."
 }
 
 if (-not (Test-Path -LiteralPath $ProfileRoot)) {

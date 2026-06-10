@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
-  [int[]]$Ports = @(9222, 9223, 9333)
+  [int[]]$Ports = @(9222, 9223, 9333),
+
+  [switch]$ShowCommandLine
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -12,14 +14,31 @@ function Get-ProcessSummary([int]$ProcessId) {
     return $null
   }
 
+  $commandLine = if ($wmi -and $ShowCommandLine) { $wmi.CommandLine } else { $null }
+
   [pscustomobject]@{
     Id = $ProcessId
     Parent = if ($wmi) { $wmi.ParentProcessId } else { $null }
     Name = if ($process) { $process.ProcessName } else { $wmi.Name }
     WS_MB = if ($process) { [math]::Round($process.WorkingSet64 / 1MB, 1) } else { $null }
     CPU_s = if ($process -and $process.CPU -ne $null) { [math]::Round($process.CPU, 1) } else { $null }
-    CommandLine = if ($wmi) { $wmi.CommandLine } else { $null }
+    CommandLine = $commandLine
   }
+}
+
+function Get-RemoteDebuggingPort([string]$CommandLine) {
+  if ($CommandLine -match "--remote-debugging-port=([0-9]+)") {
+    return [int]$Matches[1]
+  }
+  return $null
+}
+
+function Get-UserDataDirLabel([string]$CommandLine) {
+  if ($CommandLine -match "--user-data-dir=(?:""([^""]+)""|'([^']+)'|([^ ]+))") {
+    $value = @($Matches[1], $Matches[2], $Matches[3]) | Where-Object { $_ } | Select-Object -First 1
+    return Split-Path -Leaf $value
+  }
+  return $null
 }
 
 Write-Host "-- CDP listeners and clients --"
@@ -41,11 +60,19 @@ $summaries = foreach ($processId in $pids) {
   Get-ProcessSummary $processId
 }
 
-$summaries |
-  Where-Object { $_ } |
-  Sort-Object Name, Id |
-  Select-Object Id, Parent, Name, WS_MB, CPU_s, CommandLine |
-  Format-List
+if ($ShowCommandLine) {
+  $summaries |
+    Where-Object { $_ } |
+    Sort-Object Name, Id |
+    Select-Object Id, Parent, Name, WS_MB, CPU_s, CommandLine |
+    Format-List
+} else {
+  $summaries |
+    Where-Object { $_ } |
+    Sort-Object Name, Id |
+    Select-Object Id, Parent, Name, WS_MB, CPU_s |
+    Format-List
+}
 
 Write-Host "-- Chrome remote debugging roots --"
 $roots = Get-CimInstance Win32_Process |
@@ -68,14 +95,18 @@ $roots |
       }
     }
 
+    $commandLine = if ($ShowCommandLine) { $_.CommandLine } else { $null }
+
     [pscustomobject]@{
       Id = $_.ProcessId
       Parent = $_.ParentProcessId
       Name = $_.Name
+      Port = Get-RemoteDebuggingPort $_.CommandLine
+      Profile = Get-UserDataDirLabel $_.CommandLine
       RootWS_MB = if ($rootProcess) { [math]::Round($rootProcess.WorkingSet64 / 1MB, 1) } else { $null }
       ChildCount = @($children).Count
       ChildWS_MB = [math]::Round($childWorkingSet / 1MB, 1)
-      CommandLine = $_.CommandLine
+      CommandLine = $commandLine
     }
   } |
   Sort-Object Id |

@@ -12,6 +12,8 @@ const DEFAULTS = Object.freeze({
   enableLog: false,
   enableDebugger: false,
   defaultViewport: null,
+  allowNonLocalCdpUrl: false,
+  allowFirstPageFallback: false,
 });
 
 const lastScreenshotAt = new WeakMap();
@@ -45,6 +47,29 @@ function normalizeOptions(options = {}) {
   };
 }
 
+function parseUrl(value, label) {
+  try {
+    return new URL(value);
+  } catch (error) {
+    throw new Error(`Invalid ${label}: ${value}`);
+  }
+}
+
+function assertLocalCdpUrl(cdpUrl, options = {}) {
+  const settings = normalizeOptions(options);
+  if (settings.allowNonLocalCdpUrl) {
+    return;
+  }
+
+  const parsed = parseUrl(cdpUrl, 'CDP URL');
+  const localHosts = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
+  if (!localHosts.has(parsed.hostname)) {
+    throw new Error(
+      `Refusing non-local CDP URL: ${cdpUrl}. Use 127.0.0.1 or localhost, or pass allowNonLocalCdpUrl for a reviewed exception.`,
+    );
+  }
+}
+
 function requirePuppeteer() {
   try {
     return require('puppeteer-core');
@@ -63,6 +88,7 @@ function requirePuppeteer() {
 
 async function connectCdp(options = {}) {
   const settings = normalizeOptions(options);
+  assertLocalCdpUrl(settings.cdpUrl, settings);
   const puppeteer = options.puppeteer || requirePuppeteer();
   const browser = await puppeteer.connect({
     browserURL: settings.cdpUrl,
@@ -85,11 +111,20 @@ async function connectCdp(options = {}) {
 async function findTargetPage(browser, options = {}) {
   const settings = normalizeOptions(options);
   const pages = await browser.pages();
+  const targetUrl = parseUrl(settings.targetUrl, 'target URL');
   const target = pages.find((page) => page.url().startsWith(settings.targetUrl)) ||
-    pages.find((page) => page.url().includes(new URL(settings.targetUrl).hostname)) ||
-    pages[0];
+    pages.find((page) => {
+      try {
+        return new URL(page.url()).hostname === targetUrl.hostname;
+      } catch (error) {
+        return false;
+      }
+    });
 
   if (!target) {
+    if (settings.allowFirstPageFallback && pages[0]) {
+      return pages[0];
+    }
     throw new Error(`No page target found for ${settings.targetUrl}`);
   }
 
@@ -181,6 +216,7 @@ module.exports = {
   createThrottled,
   enableRequestedDomains,
   findTargetPage,
+  assertLocalCdpUrl,
   normalizeOptions,
   pollUntil,
   safeScreenshot,
