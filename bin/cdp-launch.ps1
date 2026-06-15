@@ -82,7 +82,6 @@ $args = @(
   "--user-data-dir=$profilePath",
   "--no-first-run",
   "--new-window",
-  "--disable-background-networking",
   "--disable-background-timer-throttling",
   "--disable-renderer-backgrounding",
   "--disable-backgrounding-occluded-windows"
