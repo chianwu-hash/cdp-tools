@@ -61,19 +61,23 @@ if (-not (Test-Path -LiteralPath $profilePath)) {
   New-Item -ItemType Directory -Path $profilePath | Out-Null
 }
 
-# Pre-seed Preferences so "Show in folder" has a valid download path on first launch.
+# Ensure download.default_directory is set so "Show in folder" works.
 $defaultDir = Join-Path $profilePath "Default"
 $prefsFile = Join-Path $defaultDir "Preferences"
+$downloadsPath = Join-Path $env:USERPROFILE "Downloads"
 if (-not (Test-Path -LiteralPath $prefsFile)) {
   New-Item -ItemType Directory -Path $defaultDir -Force | Out-Null
-  $downloadsPath = Join-Path $env:USERPROFILE "Downloads"
-  $prefs = @{
-    download = @{
-      default_directory    = $downloadsPath
-      prompt_for_download  = $false
-    }
-  } | ConvertTo-Json -Compress
+  $prefs = @{ download = @{ default_directory = $downloadsPath; prompt_for_download = $false } } | ConvertTo-Json -Compress
   [System.IO.File]::WriteAllText($prefsFile, $prefs, [System.Text.Encoding]::UTF8)
+} else {
+  $prefs = Get-Content $prefsFile -Raw | ConvertFrom-Json
+  if (-not $prefs.download -or -not $prefs.download.default_directory) {
+    $prefs | Add-Member -MemberType NoteProperty -Name "download" -Value ([PSCustomObject]@{
+      default_directory   = $downloadsPath
+      prompt_for_download = $false
+    }) -Force
+    $prefs | ConvertTo-Json -Depth 20 -Compress | Set-Content $prefsFile -Encoding UTF8 -NoNewline
+  }
 }
 
 $listener = Get-ListeningProcessOnPort $Port
