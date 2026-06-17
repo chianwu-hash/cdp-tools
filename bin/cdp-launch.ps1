@@ -70,13 +70,17 @@ if (-not (Test-Path -LiteralPath $prefsFile)) {
   $prefs = @{ download = @{ default_directory = $downloadsPath; prompt_for_download = $false } } | ConvertTo-Json -Compress
   [System.IO.File]::WriteAllText($prefsFile, $prefs, [System.Text.Encoding]::UTF8)
 } else {
-  $prefs = Get-Content $prefsFile -Raw | ConvertFrom-Json
-  if (-not $prefs.download -or -not $prefs.download.default_directory) {
-    $prefs | Add-Member -MemberType NoteProperty -Name "download" -Value ([PSCustomObject]@{
-      default_directory   = $downloadsPath
-      prompt_for_download = $false
-    }) -Force
-    $prefs | ConvertTo-Json -Depth 20 -Compress | Set-Content $prefsFile -Encoding UTF8 -NoNewline
+  try {
+    $prefs = Get-Content $prefsFile -Raw | ConvertFrom-Json
+    if (-not $prefs.download -or -not $prefs.download.default_directory) {
+      $prefs | Add-Member -MemberType NoteProperty -Name "download" -Value ([PSCustomObject]@{
+        default_directory   = $downloadsPath
+        prompt_for_download = $false
+      }) -Force
+      $prefs | ConvertTo-Json -Depth 20 -Compress | Set-Content $prefsFile -Encoding UTF8 -NoNewline
+    }
+  } catch {
+    # Chrome Preferences may be too large for PS 5.1's ConvertFrom-Json; skip silently.
   }
 }
 
