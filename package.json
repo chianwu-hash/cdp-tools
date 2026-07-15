@@ -1,4 +1,33 @@
 {
+  "name": "cdp-tools",
+  "version": "0.2.0",
+  "description": "Portable local Chrome DevTools Protocol lifecycle and safety tools.",
+  "type": "commonjs",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./safe-client": "./packages/cdp-safe-client/index.js"
+  },
+  "bin": {
+    "cdp-launch": "cli/cdp-launch.js",
+    "cdp-status": "cli/cdp-status.js"
+  },
+  "files": [
+    "index.js",
+    "cli/",
+    "lib/",
+    "packages/cdp-safe-client/",
+    "README.md",
+    ".env.cdp.example"
+  ],
+  "scripts": {
+    "check": "node scripts/check.js",
+    "pack:check": "npm pack --dry-run"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "license": "UNLICENSED",
   "dependencies": {
     "puppeteer-core": "^25.1.0"
   }

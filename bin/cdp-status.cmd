@@ -1,2 +1,2 @@
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0cdp-status.ps1" %*
+node "%~dp0..\cli\cdp-status.js" %*

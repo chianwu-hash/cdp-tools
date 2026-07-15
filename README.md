@@ -1,80 +1,81 @@
-# Local CDP Tools
+# cdp-tools
 
-Shared utilities for Chrome DevTools Protocol automation on this machine.
+Portable local Chrome DevTools Protocol lifecycle and safety tools.
 
-Use these tools instead of launching Chrome or connecting to CDP directly from
-individual projects.
+The package owns low-level browser concerns:
+
+- finding Chrome or Edge
+- selecting and validating a local CDP port
+- creating a dedicated persistent profile
+- launching the browser with safe CDP defaults
+- checking CDP endpoint readiness
+- providing a throttled Puppeteer safety client
+
+Higher-level workflow packages should depend on this package instead of
+launching `chrome.exe --remote-debugging-port` themselves.
+
+## Install
+
+Until the package is published to npm, install it from GitHub:
+
+```powershell
+npm install github:chianwu-hash/cdp-tools
+```
+
+This installs the `cdp-launch` and `cdp-status` npm binaries. Projects should
+normally call them through an npm script or use the JavaScript API rather than
+requiring users to modify the machine PATH.
 
 ## Commands
 
-`D:\projects\cdp-tools\bin` is intended to be on the user PATH. Open a new
-terminal after PATH changes so Windows reloads the environment.
-
-Launch a dedicated ChatGPT CDP browser:
-
 ```powershell
-cdp-launch chatgpt
+npx cdp-launch chatgpt --port 9222 --url https://chatgpt.com/
+npx cdp-status --ports 9222,9223,9333
 ```
 
-Launch with custom values:
+PowerShell-style flag names such as `-Name`, `-Port`, and `-ProfileRoot` remain
+accepted for compatibility.
 
-```powershell
-cdp-launch -Name chatgpt -Port 9222 -ProfileRoot D:\chrome-cdp-profiles
-```
+The profile root is portable:
 
-Profiles must stay under `D:\chrome-cdp-profiles` by default. Use
-`-AllowNonStandardProfileRoot` only for a reviewed local exception.
+- `CDP_PROFILE_ROOT`, when set
+- `%LOCALAPPDATA%\cdp-tools\profiles` on Windows
+- `~/.local/share/cdp-tools/profiles` on other platforms
 
-Inspect CDP listeners, active clients, and related process trees:
-
-```powershell
-cdp-status
-```
-
-By default, `cdp-status` hides full process command lines so profile paths and
-launch URLs are not copied into logs accidentally. Use this only while
-debugging locally:
-
-```powershell
-cdp-status -ShowCommandLine
-```
-
-## Node Usage
-
-Install the local wrapper in a project:
-
-```powershell
-npm install --save file:D:/projects/cdp-tools/packages/cdp-safe-client puppeteer-core
-```
-
-Then use it from scripts:
+## Node API
 
 ```js
-const { connectCdp, pollUntil, safeScreenshot } = require('@local/cdp-safe-client');
+const {
+  launchCdpBrowser,
+  getCdpStatus,
+} = require('cdp-tools');
 
-const { browser, page } = await connectCdp({
-  cdpUrl: process.env.CDP_URL || 'http://127.0.0.1:9222',
-  targetUrl: 'https://chatgpt.com/',
-  pollMs: Number(process.env.CDP_POLL_MS || 8000),
+const session = await launchCdpBrowser({
+  name: 'chatgpt',
+  port: 9222,
+  url: 'https://chatgpt.com/',
+  noLaunchIfRunning: true,
 });
 
-await pollUntil(async () => {
-  return page.url().includes('chatgpt.com');
-}, { pollMs: 8000, timeoutMs: 60000 });
-
-await safeScreenshot(page, { path: 'out.png' });
-await browser.disconnect();
+console.log(session.cdpUrl);
+console.log(await getCdpStatus({ ports: [9222] }));
 ```
+
+## Safe Client
+
+```js
+const { connectCdp, pollUntil, safeScreenshot } = require('cdp-tools/safe-client');
+```
+
+The safe client accepts local CDP URLs by default, avoids enabling expensive
+CDP domains unless requested, clamps polling intervals, and throttles
+screenshots.
 
 ## Policy
 
-- Launch Chrome with `cdp-launch`, not raw `chrome.exe --remote-debugging-port`.
-- Connect through `@local/cdp-safe-client` for Node scripts when practical.
-- `@local/cdp-safe-client` accepts only local CDP URLs by default.
-- `@local/cdp-safe-client` fails if the requested target page is not found by default.
-- Do not repeatedly enumerate all tabs or targets inside polling loops.
-- Do not enable `Network`, `Performance`, `Log`, or `Debugger` domains unless needed.
-- Do not take screenshots on every poll loop.
-- Default polling interval should be 5000-8000 ms.
-- Write batch logs to files instead of streaming large logs into Codex Desktop.
-- Use CDP profiles under `D:\chrome-cdp-profiles\`, not C drive project folders.
+- Reuse one browser connection, page, and CDP session where practical.
+- Do not repeatedly enumerate all targets inside polling loops.
+- Do not enable Network, Performance, Log, or Debugger unless required.
+- Keep polling at 5000-8000 ms for normal automation.
+- Keep screenshot intervals at 10000 ms or longer.
+- Store browser profiles outside application repositories.
