@@ -14,6 +14,16 @@ The package owns low-level browser concerns:
 Higher-level workflow packages should depend on this package instead of
 launching `chrome.exe --remote-debugging-port` themselves.
 
+## Project Memory
+
+This repo uses repo-local memory for AI-assisted maintenance:
+
+- `AGENTS.md`: Codex startup rules.
+- `CLAUDE.md`: Claude startup rules.
+- `docs/PROJECT_MEMORY.md`: durable project facts and safety decisions.
+- `docs/RUNBOOK.md`: repeatable operations and validation steps.
+- `docs/OPERATIONS_LOG.md`: dated memory-relevant changes.
+
 ## Install
 
 Until the package is published to npm, install it from GitHub:
