@@ -1,4 +1,5 @@
 'use strict';
+const { guardPuppeteer } = require('./background-policy');
 
 const DEFAULTS = Object.freeze({
   cdpUrl: 'http://127.0.0.1:9222',
@@ -90,11 +91,12 @@ async function connectCdp(options = {}) {
   const settings = normalizeOptions(options);
   assertLocalCdpUrl(settings.cdpUrl, settings);
   const puppeteer = options.puppeteer || requirePuppeteer();
-  const browser = await puppeteer.connect({
+  const browser = await guardPuppeteer(await puppeteer.connect({
     browserURL: settings.cdpUrl,
     defaultViewport: settings.defaultViewport,
-  });
+  }));
 
+  try {
   const page = await findTargetPage(browser, settings);
   const session = await page.target().createCDPSession();
   await enableRequestedDomains(session, settings);
@@ -106,6 +108,7 @@ async function connectCdp(options = {}) {
     settings,
     disconnect: () => browser.disconnect(),
   };
+  } catch (error) { await browser.disconnect(); throw error; }
 }
 
 async function findTargetPage(browser, options = {}) {

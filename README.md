@@ -81,6 +81,12 @@ The safe client accepts local CDP URLs by default, avoids enabling expensive
 CDP domains unless requested, clamps polling intervals, and throttles
 screenshots.
 
+The safe client now guards Puppeteer pages and CDP sessions against foreground
+activation (`Page.bringToFront`, `Target.activateTarget`, and window changes).
+New pages are created in the background only after an existing browser window
+is verified. An unavailable background path fails instead of activating a window.
+This cooperative client policy does not sandbox independent CDP or desktop clients.
+
 ## Policy
 
 - Reuse one browser connection, page, and CDP session where practical.
